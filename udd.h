@@ -15,7 +15,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_fbdev_dma.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_probe_helper.h>
 
 #include <drm/drm_format_helper.h>

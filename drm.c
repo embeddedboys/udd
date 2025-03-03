@@ -396,7 +396,7 @@ int udd_drm_register(struct drm_device *drm)
         return -1;
     };
 
-    drm_fbdev_dma_setup(drm, 0);
+    drm_fbdev_generic_setup(drm, 0);
 
     return 0;
 }
