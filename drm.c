@@ -68,9 +68,6 @@ static int udd_buf_copy(void *dst, struct drm_framebuffer *fb,
         else
             drm_fb_memcpy(dst, src, fb, clip);
         break;
-    // case DRM_FORMAT_RGB888:
-    //     drm_fb_memcpy(dst, NULL, src, fb, clip);
-    //     break;
     case DRM_FORMAT_XRGB8888:
         drm_fb_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
         break;
@@ -89,23 +86,20 @@ static int udd_buf_copy(void *dst, struct drm_framebuffer *fb,
 static void udd_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
     struct udd *udd = drm_to_udd(fb->dev);
-    struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
-	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem);
+    //struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
 
     unsigned int height = rect->y2 - rect->y1;
     unsigned int width = rect->x2 - rect->x1;
-    // const struct drm_format_info *dst_format;
     ssize_t jpeg_length = 0;
     u8 *jpeg_data;
     bool swap = false;
     int ret = 0;
-    // size_t len;
     bool full;
     void *tr;
 
     full = width == fb->width && height == fb->height;
 
-    tr = cma_obj->vaddr;
+    tr = udd->tx_buf;
 
     ret = udd_buf_copy(tr, fb, rect, swap);
     if (ret) {

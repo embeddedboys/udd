@@ -256,7 +256,7 @@ struct fb_info *udd_framebuffer_alloc(struct udd_display *display,
     info->flags = FBINFO_VIRTFB;
 
     fbdefio->delay = HZ / display->fps;
-    fbdefio->sort_pagereflist = true;
+    //fbdefio->sort_pagereflist = true;
     fbdefio->deferred_io = udd_fb_deferred_io;
     fb_deferred_io_init(info);
 

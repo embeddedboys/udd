@@ -57,7 +57,7 @@ uint8_t *jpeg_encode_bmp(uint8_t *bmp, size_t len, size_t *out_size)
     jpeg.iBufferSize = buffer_size;
     jpeg.pHighWater = &jpeg.pOutput[jpeg.iBufferSize - 512];
 
-    rc = JPEGEncodeBegin(&jpeg, &jpe, w, h, JPEGE_PIXEL_RGB565, JPEGE_SUBSAMPLE_420, JPEGE_Q_HIGH);
+    rc = JPEGEncodeBegin(&jpeg, &jpe, w, h, JPEGE_PIXEL_RGB565, JPEGE_SUBSAMPLE_420, JPEGE_Q_LOW);
     if (rc == JPEGE_SUCCESS)
         JPEGAddFrame(&jpeg, &jpe, bmp_tmp, pitch);
 
