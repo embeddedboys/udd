@@ -15,13 +15,13 @@
 #include <drm/drm_device.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_fbdev_dma.h>
-#include <drm/drm_probe_helper.h>
 
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
