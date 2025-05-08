@@ -1,3 +1,7 @@
+## embeddedboys USB Display Device driver
+
+This will be the main branch for UDD driver maintenance until the release of Ubuntu 26.04 LTS.
+
 ## System Info
 
 | Distro | Kernel version |
