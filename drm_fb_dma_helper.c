@@ -193,4 +193,3 @@ int drm_fb_dma_get_scanout_buffer(struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_dma_get_scanout_buffer);
-

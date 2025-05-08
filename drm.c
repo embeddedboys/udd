@@ -17,6 +17,9 @@
 #include "udd.h"
 #include "encoder.h"
 
+#undef pr_info
+#define pr_info(...)
+
 #define DRV_NAME "udd-drm"
 
 static inline struct udd *drm_to_udd(struct drm_device *drm)
@@ -241,11 +244,11 @@ static int udd_connector_get_modes(struct drm_connector *connector)
 }
 
 static const struct drm_connector_helper_funcs udd_connector_hfuncs = {
-    .get_modes = udd_connector_get_modes,
+	.get_modes = udd_connector_get_modes,
 };
 
 static const struct drm_connector_funcs udd_connector_funcs = {
-    .reset = drm_atomic_helper_connector_reset,
+	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -264,7 +267,7 @@ static const uint32_t udd_drm_formats[] = {
 };
 
 static const struct drm_display_mode udd_disp_mode = {
-    DRM_MODE_INIT(60, 480, 320, 85, 55),
+    DRM_MODE_INIT(30, 480, 320, 85, 55),
 };
 
 DEFINE_DRM_GEM_DMA_FOPS(udd_drm_fops);
@@ -396,7 +399,7 @@ int udd_drm_register(struct drm_device *drm)
         return -1;
     };
 
-    drm_fbdev_generic_setup(drm, 0);
+    drm_fbdev_dma_setup(drm, 0);
 
     return 0;
 }
