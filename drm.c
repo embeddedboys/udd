@@ -46,14 +46,9 @@ static void udd_drm_pipe_disable(struct drm_simple_display_pipe *pipe)
     pr_info("%s\n", __func__);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
                         struct drm_rect *clip, bool swap,
                         struct drm_format_conv_state *fmtcnv_state)
-#else
-static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *clip, bool swap)
-#endif
 {
     struct udd *udd = drm_to_udd(fb->dev);
     struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
@@ -67,13 +62,8 @@ static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer
     switch (fb->format->format) {
     case DRM_FORMAT_RGB565:
         if (swap)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
             drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach,
                         fmtcnv_state);
-#else
-            drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
-#endif
-
         else
             drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
         break;
@@ -83,18 +73,10 @@ static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer
     case DRM_FORMAT_XRGB8888:
         switch (udd->pixel_format) {
         case DRM_FORMAT_RGB565:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
             drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
-#else
-            drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, swap);
-#endif
             break;
         case DRM_FORMAT_RGB888:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
             drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip, fmtcnv_state);
-#else
-            drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip);
-#endif
             break;
         }
         break;
@@ -109,13 +91,8 @@ static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer
     return ret;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
 static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
                         struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
-#else
-static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *rect)
-#endif
 {
     struct udd *udd = drm_to_udd(fb->dev);
     unsigned int height = rect->y2 - rect->y1;
@@ -132,11 +109,7 @@ static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
     full = width == fb->width && height == fb->height;
 
     tr = udd->tx_buf;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
     ret = udd_buf_copy(tr, src, fb, rect, swap, fmtcnv_state);
-#else
-    ret = udd_buf_copy(tr, src, fb, rect, swap);
-#endif
     if (ret) {
         pr_info("%s, error on buf copy!\n", __func__);
     }
@@ -179,15 +152,11 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
     full_rect.x2 = 480;
     full_rect.y2 = 320;
 
-    pr_info("%s\n", __func__);
+    pr_debug("%s\n", __func__);
     if (drm_atomic_helper_damage_merged(old_state, state, &rect)) {
-        pr_info("x1: %u, y1: %u, x2: %u, y2: %u\n", rect.x1, rect.y1, rect.x2, rect.y2);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
+        pr_debug("x1: %u, y1: %u, x2: %u, y2: %u\n", rect.x1, rect.y1, rect.x2, rect.y2);
         udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect,
                     &shadow_plane_state->fmtcnv_state);
-#else
-        udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect);
-#endif
     }
 
     drm_dev_exit(idx);
@@ -274,8 +243,7 @@ static const struct drm_driver udd_drm_driver = {
     .fops = &udd_drm_fops,
     DRM_GEM_DMA_DRIVER_OPS_VMAP,
     .name = "udd-drm",
-    .desc = "UDD DRM driver",
-    .date = "20250119",
+    .desc = "embeddedboys USB Display DRM driver",
     .major = 1,
     .minor = 0,
 };
@@ -396,7 +364,7 @@ int udd_drm_register(struct drm_device *drm)
         return -1;
     };
 
-    drm_fbdev_dma_setup(drm, 0);
+    drm_client_setup(drm, NULL);
 
     return 0;
 }

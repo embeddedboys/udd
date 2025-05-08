@@ -18,13 +18,16 @@
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_probe_helper.h>
 
-#include <drm/drm_format_helper.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_damage_helper.h>
-#include <drm/drm_gem_dma_helper.h>
-#include <drm/drm_simple_kms_helper.h>
-#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_mipi_dbi.h>
 
 /* Display backends select, fbdev is default */
 #define UDD_DISP_BACKEND_FBDEV 0
