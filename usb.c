@@ -26,8 +26,47 @@
 
 #define DRV_NAME "udd"
 
-ssize_t udd_flush(struct usb_device *udev, const u8 jpeg_data[], size_t data_size)
+static int udd_transfer(struct udd *udd, u8 cmd, u8 request,
+                        u8 addr, u8 *data, size_t len)
 {
+    struct usb_device *udev = udd->udev;
+    int rc, actual_length;
+    int pipe;
+
+    udd->control_buffer[0] = cmd;
+    udd->control_buffer[1] = len & 0xff;
+    udd->control_buffer[2] = len >> 8;
+    udd->control_buffer[3] = 0x00;   // dummy byte
+
+    rc = usb_control_msg(
+        udev,
+        usb_sndctrlpipe(udev, EP0_OUT_ADDR),
+        request,
+        TYPE_VENDOR | USB_DIR_OUT,
+        0, 0,
+        udd->control_buffer,
+        sizeof(udd->control_buffer),
+        UDD_DEFAULT_TIMEOUT
+    );
+
+    pipe = (addr & USB_DIR_OUT) ? usb_sndbulkpipe(udev, addr) : \
+                                  usb_rcvbulkpipe(udev, addr);
+
+    rc = usb_bulk_msg(
+        udev,
+        pipe,
+        (void *)data,
+        len,
+        &actual_length,
+        UDD_DEFAULT_TIMEOUT
+    );
+
+    return actual_length;
+}
+
+ssize_t udd_flush(struct udd *udd, u8 jpeg_data[], size_t data_size)
+{
+    struct usb_device *udev = udd->udev;
     u8 control_buffer[4];
     int rc, actual_length;
 
@@ -64,19 +103,38 @@ ssize_t udd_flush(struct usb_device *udev, const u8 jpeg_data[], size_t data_siz
     return actual_length;
 }
 
-static int udd_bmp_blit(struct usb_device *udev, uint8_t *bmp, size_t len)
+static int udd_read_unique_id(struct usb_interface *intf, u8 serial[], size_t len)
 {
-    u8 *jpeg_data;
+    struct udd *udd = usb_get_intfdata(intf);
+    int rc;
+
+    if (len > 8) {
+        pr_info("serial length should less than 8!\n");
+        return -EINVAL;
+    }
+
+    /* Dummy read, device need to prepares data */
+    rc = udd_transfer(udd, 0x01, REQ_EP2_IN, EP2_IN_ADDR, serial, len);
+
+    rc = udd_transfer(udd, 0x01, REQ_EP2_IN, EP2_IN_ADDR, serial, len);
+
+    return 0;
+}
+
+static int udd_bmp_blit(struct usb_interface *intf, uint8_t *bmp, size_t len)
+{
+    struct udd *udd = usb_get_intfdata(intf);
     ssize_t jpeg_length = 0, actual_length = 0;
+    u8 *jpeg_data;
 
     jpeg_data = jpeg_encode_bmp(bmp, len, &jpeg_length);
-    actual_length = udd_flush(udev, jpeg_data, jpeg_length);
+    actual_length = udd_flush(udd, jpeg_data, jpeg_length);
 
     kfree(jpeg_data);
 
     if (actual_length != jpeg_length) {
-        dev_warn(&udev->dev, "Failed to blit bmp data");
-        return -1;
+        dev_warn(&intf->dev, "Failed to blit bmp data");
+        return -EINVAL;
     }
 
     return 0;
@@ -122,10 +180,11 @@ static int __maybe_unused udd_fb_steup(struct usb_interface *intf,
     udd->udev = udev;
     udd->dev = dev;
     udd->info = info;
+    udd->intf = intf;
 
     dev_set_drvdata(dev, udd);
 
-    udd_bmp_blit(udev, rgb565, ARRAY_SIZE(rgb565));
+    udd_bmp_blit(intf, rgb565, ARRAY_SIZE(rgb565));
 
     rc = udd_register_framebuffer(info);
     if (rc) {
@@ -167,9 +226,10 @@ static int __maybe_unused udd_drm_setup(struct usb_interface *intf,
     udd = container_of(drm, struct udd, drm);
     udd->udev = udev;
     udd->dev = dev;
+    udd->intf = intf;
 
-    dev_set_drvdata(dev, udd);
-    udd_bmp_blit(udev, rgb565, ARRAY_SIZE(rgb565));
+    usb_set_intfdata(intf, udd);
+    udd_bmp_blit(intf, rgb565, ARRAY_SIZE(rgb565));
 
     rc = udd_drm_register(drm);
     if (rc)
@@ -183,7 +243,7 @@ err_free_drm:
 
 static void __maybe_unused udd_drm_cleanup(struct usb_interface *intf)
 {
-    struct udd *udd = dev_get_drvdata(&intf->dev);
+    struct udd *udd = usb_get_intfdata(intf);
     struct drm_device *drm = &udd->drm;
 
     pr_info("%s\n", __func__);
@@ -193,11 +253,20 @@ static void __maybe_unused udd_drm_cleanup(struct usb_interface *intf)
 static int udd_probe(struct usb_interface *intf,
                     const struct usb_device_id *id)
 {
+    u8 serial[8];
+
 #if UDD_DEF_DISP_BACKEND == UDD_DISP_BACKEND_FBDEV
     udd_fb_steup(intf, id);
 #else
     udd_drm_setup(intf, id);
 #endif
+
+    udd_read_unique_id(intf, serial, ARRAY_SIZE(serial));
+
+    DRM_DEBUG_KMS("sn : 0x%x%x%x%x%x%x%x%x\n", serial[0], serial[1],
+                                                       serial[2], serial[3],
+                                                       serial[4], serial[5],
+                                                       serial[6], serial[7]);
 
 #if UDD_ENABLE_INPUT_SUPPORT
     udd_input_setup(intf, id);
@@ -233,6 +302,6 @@ static struct usb_driver udd_drv = {
 };
 module_usb_driver(udd_drv);
 
-MODULE_AUTHOR("Zheng Hua <hua.zheng@embeddedboys.com>");
-MODULE_DESCRIPTION("USB display device driver");
+MODULE_AUTHOR("Wooden Chair <hua.zheng@embeddedboys.com>");
+MODULE_DESCRIPTION("embeddedboys USB display device driver");
 MODULE_LICENSE("GPL");

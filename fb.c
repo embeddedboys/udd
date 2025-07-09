@@ -157,7 +157,7 @@ static void udd_fb_deferred_io(struct fb_info *info, struct list_head *pagerefli
         // goto skip_frame;
         jpeg_length = USB_TRANS_MAX_SIZE - 1;
 
-    udd_flush(udd->udev, jpeg_data, jpeg_length);
+    udd_flush(udd, jpeg_data, jpeg_length);
 
 // skip_frame:
     kfree(jpeg_data);

@@ -72,7 +72,9 @@ struct udd {
     struct device          *dev;
 
     /* USB specific data */
+    u8 control_buffer[4];
     struct usb_device      *udev;
+    struct usb_interface   *intf;
 
     /* Framebuffer specific data */
     struct fb_info        *info;
@@ -108,6 +110,6 @@ void udd_drm_unregister(struct drm_device *drm);
 int udd_input_setup(struct usb_interface *intf, const struct usb_device_id *id);
 int udd_input_cleanup(struct usb_interface *intf);
 
-ssize_t udd_flush(struct usb_device *udev, const u8 jpeg_data[], size_t data_size);
+ssize_t udd_flush(struct udd *udd, u8 jpeg_data[], size_t data_size);
 
 #endif
