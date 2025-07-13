@@ -3,8 +3,7 @@
 
 | Distro | Kernel version |
 | --- | --- |
-| Ubuntu 20.04.6 LTS Live Session | 5.15.0-67-generic |
-| Ubuntu 20.04.6 LTS | 5.15.131-generic |
+| Luckfox Pico | 5.10.160 (Dare mighty things) |
 
 Install tools
 ```bash

@@ -16,15 +16,20 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_framebuffer.h>
 
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drm_format_helper.h>
-#include <drm/drm_atomic_helper.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_simple_kms_helper.h>
-#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_format_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_mipi_dbi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_rect.h>
+#include <video/mipi_display.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_fb_helper.h>
 
 /* Display backends select, fbdev is default */
 #define UDD_DISP_BACKEND_FBDEV 0

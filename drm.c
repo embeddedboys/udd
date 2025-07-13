@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2025 embeddedboys, Ltd.
  *
- * Author: Zheng Hua <hua.zheng@embeddedboys.com>
+ * Author: Wooden Chair <hua.zheng@embeddedboys.com>
  */
 
 #define pr_fmt(fmt) "udd-drm: " fmt
@@ -12,10 +12,14 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
+#include <linux/dma-buf.h>
 #include <video/mipi_display.h>
 
 #include "udd.h"
 #include "encoder.h"
+
+#undef pr_info
+#define pr_info(...)
 
 #define DRV_NAME "udd-drm"
 
@@ -25,7 +29,7 @@ static inline struct udd *drm_to_udd(struct drm_device *drm)
 }
 
 static enum drm_mode_status udd_drm_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-					      const struct drm_display_mode *mode)
+                          const struct drm_display_mode *mode)
 {
     // struct udd *udd = drm_to_udd(pipe->crtc.dev);
     // int rc;
@@ -36,8 +40,8 @@ static enum drm_mode_status udd_drm_pipe_mode_valid(struct drm_simple_display_pi
 }
 
 static void udd_drm_pipe_enable(struct drm_simple_display_pipe *pipe,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_plane_state *plane_state)
+                  struct drm_crtc_state *crtc_state,
+                  struct drm_plane_state *plane_state)
 {
     pr_info("%s\n", __func__);
 }
@@ -53,12 +57,17 @@ static int udd_buf_copy(void *dst, struct drm_framebuffer *fb,
     // struct udd *udd = drm_to_udd(fb->dev);
     struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
     struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem);
+    struct dma_buf_attachment *import_attach = gem->import_attach;
+    // struct drm_format_name_buf format_name;
     void *src = cma_obj->vaddr;
-    int ret;
+    int ret = 0;
 
-    ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-    if (ret)
-        return ret;
+    if (import_attach) {
+        ret = dma_buf_begin_cpu_access(import_attach->dmabuf,
+                           DMA_FROM_DEVICE);
+        if (ret)
+            return ret;
+    }
 
     switch (fb->format->format) {
     case DRM_FORMAT_RGB565:
@@ -77,7 +86,9 @@ static int udd_buf_copy(void *dst, struct drm_framebuffer *fb,
         ret = -EINVAL;
     }
 
-    drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+    if (import_attach)
+        ret = dma_buf_end_cpu_access(import_attach->dmabuf,
+                         DMA_FROM_DEVICE);
 
     return ret;
 }
@@ -109,7 +120,7 @@ static void udd_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
     jpeg_data = jpeg_encode_rgb565(tr,
                                 480 * 320, &jpeg_length);
 
-    pr_info("%s, len : %ld\n", __func__, jpeg_length);
+    pr_info("%s, len : %d\n", __func__, jpeg_length);
     if (jpeg_length > USB_TRANS_MAX_SIZE)
         // goto skip_frame;
         jpeg_length = USB_TRANS_MAX_SIZE - 1;
@@ -151,35 +162,17 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
     drm_dev_exit(idx);
 }
 
-static void udd_drm_pipe_reset_plane(struct drm_simple_display_pipe *pipe)
-{
-	drm_gem_reset_shadow_plane(&pipe->plane);
-}
-
-static struct drm_plane_state *udd_drm_pipe_duplicate_plane_state(struct drm_simple_display_pipe *pipe)
-{
-	return drm_gem_duplicate_shadow_plane_state(&pipe->plane);
-}
-
-static void udd_drm_pipe_destroy_plane_state(struct drm_simple_display_pipe *pipe,
-				       struct drm_plane_state *plane_state)
-{
-	drm_gem_destroy_shadow_plane_state(&pipe->plane, plane_state);
-}
-
 static const struct drm_simple_display_pipe_funcs udd_display_pipe_funcs = {
     .mode_valid = udd_drm_pipe_mode_valid,
     .enable = udd_drm_pipe_enable,
     .disable = udd_drm_pipe_disable,
     .update = udd_drm_pipe_update,
-    .reset_plane = udd_drm_pipe_reset_plane,
-    .duplicate_plane_state = udd_drm_pipe_duplicate_plane_state,
-    .destroy_plane_state = udd_drm_pipe_destroy_plane_state,
+    .prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static int udd_connector_get_modes(struct drm_connector *connector)
 {
-	struct udd *udd = drm_to_udd(connector->dev);
+    struct udd *udd = drm_to_udd(connector->dev);
     struct drm_display_mode *mode;
 
     mode = drm_mode_duplicate(connector->dev, &udd->mode);
@@ -199,7 +192,7 @@ static int udd_connector_get_modes(struct drm_connector *connector)
         connector->display_info.height_mm = mode->height_mm;
     }
 
-	return 1;
+    return 1;
 }
 
 static const struct drm_connector_helper_funcs udd_connector_hfuncs = {
@@ -208,10 +201,10 @@ static const struct drm_connector_helper_funcs udd_connector_hfuncs = {
 
 static const struct drm_connector_funcs udd_connector_funcs = {
     .reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+    .fill_modes = drm_helper_probe_single_connector_modes,
+    .destroy = drm_connector_cleanup,
+    .atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+    .atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static const struct drm_mode_config_funcs udd_drm_mode_config_funcs = {
@@ -231,7 +224,7 @@ static const struct drm_display_mode udd_disp_mode = {
 
 DEFINE_DRM_GEM_CMA_FOPS(udd_drm_fops);
 
-static const struct drm_driver udd_drm_driver = {
+static struct drm_driver udd_drm_driver = {
     .driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
     .fops = &udd_drm_fops,
     DRM_GEM_CMA_DRIVER_OPS_VMAP,
@@ -248,9 +241,9 @@ static int udd_drm_dev_init_with_formats(struct udd *udd,
                 const struct drm_display_mode *mode, size_t tx_buf_size)
 {
     static const uint64_t modifiers[] = {
-		DRM_FORMAT_MOD_LINEAR,
-		DRM_FORMAT_MOD_INVALID
-	};
+        DRM_FORMAT_MOD_LINEAR,
+        DRM_FORMAT_MOD_INVALID
+    };
     struct drm_device *drm = &udd->drm;
     int rc;
 
@@ -271,7 +264,7 @@ static int udd_drm_dev_init_with_formats(struct udd *udd,
 
     drm_connector_helper_add(&udd->connector, &udd_connector_hfuncs);
     rc = drm_connector_init(drm, &udd->connector, &udd_connector_funcs,
-                            DRM_MODE_CONNECTOR_USB);
+                            DRM_MODE_CONNECTOR_Unknown);
     if (rc) {
         pr_err("failed to init connector\n");
         return rc;
