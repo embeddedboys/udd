@@ -7,8 +7,6 @@ ARCH := arm
 CROSS_COMPILE := ${HOME}/luckfox/pico/tools/linux/toolchain/arm-rockchip830-linux-uclibcgnueabihf/bin/arm-rockchip830-linux-uclibcgnueabihf-
 KERN_DIR := ${HOME}/luckfox/pico/sysdrv/source/objs_kernel
 
-PLATFORM=local
-
 MODULE_NAME:=udd
 
 all:
