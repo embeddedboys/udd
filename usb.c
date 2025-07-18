@@ -237,6 +237,6 @@ static struct usb_driver udd_drv = {
 };
 module_usb_driver(udd_drv);
 
-MODULE_AUTHOR("Zheng Hua <hua.zheng@embeddedboys.com>");
-MODULE_DESCRIPTION("USB display device driver");
+MODULE_AUTHOR("Wooden Chair <hua.zheng@embeddedboys.com>");
+MODULE_DESCRIPTION("embeddedboys USB display device driver");
 MODULE_LICENSE("GPL");

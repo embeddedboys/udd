@@ -2,8 +2,7 @@
 
 | Distro | Kernel version |
 | --- | --- |
-| Ubuntu 22.04.5 LTS Live Session | 6.8.0-40-generic |
-| Ubuntu 22.04.5 LTS | _ |
+| Luckfox lyra | 6.1.99 (Curry Ramen) |
 
 install tools
 ```bash

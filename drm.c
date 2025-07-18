@@ -46,76 +46,47 @@ static void udd_drm_pipe_disable(struct drm_simple_display_pipe *pipe)
     pr_info("%s\n", __func__);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *clip, bool swap,
-                        struct drm_format_conv_state *fmtcnv_state)
-#else
-static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
+static int udd_buf_copy(void *dst, struct drm_framebuffer *fb,
                         struct drm_rect *clip, bool swap)
-#endif
 {
-    struct udd *udd = drm_to_udd(fb->dev);
-    struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
-    struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
-    int ret;
+	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
+	int ret;
 
-    ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-    if (ret)
-        return ret;
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return ret;
 
-    switch (fb->format->format) {
-    case DRM_FORMAT_RGB565:
-        if (swap)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach,
-                        fmtcnv_state);
-#else
-            drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
-#endif
+	ret = drm_gem_fb_vmap(fb, map, data);
+	if (ret)
+		goto out_drm_gem_fb_end_cpu_access;
 
-        else
-            drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
-        break;
-    case DRM_FORMAT_RGB888:
-        drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
-        break;
-    case DRM_FORMAT_XRGB8888:
-        switch (udd->pixel_format) {
-        case DRM_FORMAT_RGB565:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
-#else
-            drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, swap);
-#endif
-            break;
-        case DRM_FORMAT_RGB888:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip, fmtcnv_state);
-#else
-            drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip);
-#endif
-            break;
-        }
-        break;
-    default:
-        drm_err_once(fb->dev, "Format is not supported: %p4cc\n",
-            &fb->format->format);
-        ret = -EINVAL;
-    }
+	switch (fb->format->format) {
+	case DRM_FORMAT_RGB565:
+		if (swap)
+			drm_fb_swab(&dst_map, NULL, data, fb, clip, !gem->import_attach);
+		else
+			drm_fb_memcpy(&dst_map, NULL, data, fb, clip);
+		break;
+	case DRM_FORMAT_XRGB8888:
+		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, data, fb, clip, swap);
+		break;
+	default:
+		drm_err_once(fb->dev, "Format is not supported: %p4cc\n",
+			     &fb->format->format);
+		ret = -EINVAL;
+	}
 
-    drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
+	drm_gem_fb_vunmap(fb, map);
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
-    return ret;
+	return ret;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
-#else
-static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *rect)
-#endif
+static void udd_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 {
     struct udd *udd = drm_to_udd(fb->dev);
     unsigned int height = rect->y2 - rect->y1;
@@ -132,20 +103,11 @@ static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
     full = width == fb->width && height == fb->height;
 
     tr = udd->tx_buf;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-    ret = udd_buf_copy(tr, src, fb, rect, swap, fmtcnv_state);
-#else
-    ret = udd_buf_copy(tr, src, fb, rect, swap);
-#endif
-    if (ret) {
-        pr_info("%s, error on buf copy!\n", __func__);
-    }
-    // tr = src->vaddr;
+    ret = udd_buf_copy(tr, fb, rect, swap);
 
-    jpeg_data = jpeg_encode_rgb565(tr,
-                                480 * 320, &jpeg_length);
+    jpeg_data = jpeg_encode_rgb565(tr, 480 * 320, &jpeg_length);
 
-    pr_info("%s, len : %ld\n", __func__, jpeg_length);
+    pr_info("%s, len : %d\n", __func__, jpeg_length);
     if (jpeg_length > USB_TRANS_MAX_SIZE)
         // goto skip_frame;
         jpeg_length = USB_TRANS_MAX_SIZE - 1;
@@ -159,7 +121,6 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
                                 struct drm_plane_state *old_state)
 {
     struct drm_plane_state *state = pipe->plane.state;
-    struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
     struct drm_framebuffer *fb = state->fb;
     struct drm_rect rect, full_rect;
     int idx;
@@ -179,30 +140,14 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
     full_rect.x2 = 480;
     full_rect.y2 = 320;
 
-    pr_info("%s\n", __func__);
+    // pr_info("%s\n", __func__);
     if (drm_atomic_helper_damage_merged(old_state, state, &rect)) {
         pr_info("x1: %u, y1: %u, x2: %u, y2: %u\n", rect.x1, rect.y1, rect.x2, rect.y2);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-        udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect,
-                    &shadow_plane_state->fmtcnv_state);
-#else
-        udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect);
-#endif
+
+        udd_fb_dirty(state->fb, &full_rect);
     }
 
     drm_dev_exit(idx);
-}
-
-static int udd_drm_pipe_begin_fb_access(struct drm_simple_display_pipe *pipe,
-				  struct drm_plane_state *plane_state)
-{
-    return drm_gem_begin_shadow_fb_access(&pipe->plane, plane_state);
-}
-
-static void udd_drm_pipe_end_fb_access(struct drm_simple_display_pipe *pipe,
-				 struct drm_plane_state *plane_state)
-{
-	drm_gem_end_shadow_fb_access(&pipe->plane, plane_state);
 }
 
 static void udd_drm_pipe_reset_plane(struct drm_simple_display_pipe *pipe)
@@ -226,8 +171,6 @@ static const struct drm_simple_display_pipe_funcs udd_display_pipe_funcs = {
     .enable = udd_drm_pipe_enable,
     .disable = udd_drm_pipe_disable,
     .update = udd_drm_pipe_update,
-    .begin_fb_access = udd_drm_pipe_begin_fb_access,
-    .end_fb_access = udd_drm_pipe_end_fb_access,
     .reset_plane = udd_drm_pipe_reset_plane,
     .duplicate_plane_state = udd_drm_pipe_duplicate_plane_state,
     .destroy_plane_state = udd_drm_pipe_destroy_plane_state,
@@ -290,6 +233,7 @@ static int udd_drm_dev_init_with_formats(struct udd *udd,
 		DRM_FORMAT_MOD_INVALID
 	};
     struct drm_device *drm = &udd->drm;
+    // dma_addr_t phy_addr;
     int rc;
 
     pr_info("%s\n", __func__);
@@ -303,6 +247,10 @@ static int udd_drm_dev_init_with_formats(struct udd *udd,
     udd->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
     if (!udd->tx_buf)
         return -ENOMEM;
+
+    // udd->tx_buf = dma_alloc_coherent(drm->dev, tx_buf_size, &phy_addr, GFP_KERNEL);
+    // if (!udd->tx_buf)
+    //     return -ENOMEM;
 
     drm_mode_copy(&udd->mode, mode);
     pr_info("mode: %ux%u\n", udd->mode.hdisplay, udd->mode.vdisplay);
