@@ -28,6 +28,8 @@
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
+#include <drm/clients/drm_client_setup.h>
+
 /* Display backends select, fbdev is default */
 #define UDD_DISP_BACKEND_FBDEV 0
 #define UDD_DISP_BACKEND_DRM   1

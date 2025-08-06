@@ -4,9 +4,10 @@ This will be the main branch for UDD driver maintenance until the release of Ubu
 
 ## System Info
 
-| Distro | Kernel version |
+| Distro | Ubuntu 24.04.2 LTS (Noble Numbat) |
 | --- | --- |
-| Ubuntu 24.04.2 LTS (Noble Numbat) | 6.11.0-26-generic |
+| Kernel version | 6.14.0-27-generic |
+| Date | 2025/8/7 |
 
 Note: The default display backend is **DRM** and input support is **disabled**.
 

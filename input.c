@@ -52,7 +52,7 @@ static void udd_tp_urb_callback(struct urb *urb)
 	x = udd->ep_int_buf[1] << 8 | udd->ep_int_buf[2];
 	y = udd->ep_int_buf[3] << 8 | udd->ep_int_buf[4];
 
-	input_report_key(indev, BTN_TOUCH, pressed);
+	input_report_key(indev, BTN_LEFT, pressed);
 	input_report_abs(indev, ABS_X, x);
 	input_report_abs(indev, ABS_Y, y);
 	// touchscreen_report_pos(indev, &udd->props, x, y, 0);

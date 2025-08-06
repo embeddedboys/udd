@@ -251,7 +251,7 @@ static const struct drm_mode_config_funcs udd_drm_mode_config_funcs = {
 };
 
 static const uint32_t udd_drm_formats[] = {
-    /* DRM_FORMAT_RGB565, format XR24 little-endian (0x34325258) not supported */
+    DRM_FORMAT_RGB565,
     DRM_FORMAT_XRGB8888,
 };
 
@@ -265,6 +265,7 @@ static const struct drm_driver udd_drm_driver = {
     .driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
     .fops = &udd_drm_fops,
     DRM_GEM_DMA_DRIVER_OPS_VMAP,
+    DRM_FBDEV_DMA_DRIVER_OPS,
     .name = "udd-drm",
     .desc = "UDD DRM driver",
     .major = 1,
@@ -387,7 +388,7 @@ int udd_drm_register(struct drm_device *drm)
         return -1;
     };
 
-    drm_fbdev_dma_setup(drm, 0);
+    drm_client_setup(drm, NULL);
 
     return 0;
 }

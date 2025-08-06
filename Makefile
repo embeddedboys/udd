@@ -21,7 +21,7 @@ test: all
 
 obj-m += $(MODULE_NAME).o
 ifeq ($(PLATFORM), local)
-	$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o drm_gem_dma_helper.o input.o drm_fbdev_dma.o drm_fb_dma_helper.o
+	$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o input.o drm_gem_dma_helper.o drm_fbdev_dma.o
 else
 	$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o input.o
 endif
