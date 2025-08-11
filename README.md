@@ -2,6 +2,8 @@
 
 This will be the main branch for UDD driver maintenance until the release of Ubuntu 26.04 LTS.
 
+![img](./assets/poweroff.png)
+
 ## System Info
 
 | Distro | Ubuntu 24.04.2 LTS (Noble Numbat) |
