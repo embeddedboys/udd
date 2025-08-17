@@ -1,8 +1,8 @@
 ## embeddedboys USB Display Device driver
 
-This will be the main branch for UDD driver maintenance until the release of Ubuntu 26.04 LTS.
+![img](./assets/udd.JPG)
 
-![img](./assets/poweroff.png)
+This will be the main branch for UDD driver maintenance until the release of Ubuntu 26.04 LTS.
 
 ## System Info
 
@@ -12,6 +12,8 @@ This will be the main branch for UDD driver maintenance until the release of Ubu
 | Date | 2025/8/7 |
 
 Note: The default display backend is **DRM** and input support is **disabled**.
+
+![img](./assets/poweroff.png)
 
 ### Get Started
 
