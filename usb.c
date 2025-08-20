@@ -39,19 +39,21 @@
 #define REQ_EP1_OUT  0X02
 #define REQ_EP2_IN   0X03
 
-ssize_t udd_flush(struct usb_device *udev, const u8 jpeg_data[], size_t data_size)
+ssize_t udd_flush(struct usb_device *udev, u16 x, u16 y, const u8 jpeg_data[], size_t data_size)
 {
-    u8 control_buffer[4];
+    u8 control_buffer[6];
     int rc, actual_length;
 
     /* data_size must be even for RP2350 */
     if (data_size % 2)
         data_size += 1;
 
-    control_buffer[0] = 0x51;
-    control_buffer[1] = data_size & 0xff;
-    control_buffer[2] = data_size >> 8;
-    control_buffer[3] = 0x00;
+    control_buffer[0] = (x & 0xff);
+    control_buffer[1] = (x >> 8);
+    control_buffer[2] = (y & 0xff);
+    control_buffer[3] = (y >> 8);
+    control_buffer[4] = (data_size & 0xff);
+    control_buffer[5] = (data_size >> 8);
 
     // request setup
     rc = usb_control_msg(
@@ -83,7 +85,7 @@ static int udd_bmp_blit(struct usb_device *udev, uint8_t *bmp, size_t len)
     ssize_t jpeg_length = 0, actual_length = 0;
 
     jpeg_data = jpeg_encode_bmp(bmp, len, &jpeg_length);
-    actual_length = udd_flush(udev, jpeg_data, jpeg_length);
+    actual_length = udd_flush(udev, 0, 0, jpeg_data, jpeg_length);
 
     kfree(jpeg_data);
 
@@ -135,6 +137,12 @@ static int __maybe_unused udd_fb_steup(struct usb_interface *intf,
     udd->udev = udev;
     udd->dev = dev;
     udd->info = info;
+
+    udd->encoder_buf = devm_kmalloc(udd->dev, info->var.xres * info->var.yres * 2, GFP_KERNEL);
+    if (!udd->encoder_buf)
+        return -ENOMEM;
+
+    udd->encoder_quality = JPEGE_Q_LOW;
 
     dev_set_drvdata(dev, udd);
 

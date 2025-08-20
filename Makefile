@@ -11,6 +11,7 @@ MODULE_NAME:=udd
 
 all:
 	make -C $(KERN_DIR) M=`pwd` modules
+	make -C tests/
 
 clean:
 	make -C $(KERN_DIR) M=`pwd` modules clean

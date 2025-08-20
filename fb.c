@@ -124,7 +124,6 @@ static void udd_fb_deferred_io(struct fb_info *info, struct list_head *pagerefli
     // struct dirty_area area = {0};
     // uint y_cur, y_end;
     struct udd *udd;
-    u8 *jpeg_data;
 
     udd = info->par;
 
@@ -149,18 +148,14 @@ static void udd_fb_deferred_io(struct fb_info *info, struct list_head *pagerefli
     pr_info("%s, dirty area: (%d, %d, %d, %d)\n", __func__, area.x1, area.y1, area.x2, area.y2);
 #endif
 
-
-    jpeg_data = jpeg_encode_rgb565(info->screen_buffer,
-                                info->fix.line_length * info->var.yres, &jpeg_length);
+    jpeg_encode_rgb565(info->screen_buffer, info->var.xres, info->var.yres,
+                info->fix.line_length * info->var.yres, udd->encoder_buf,
+                &jpeg_length, udd->encoder_quality);
 
     if (jpeg_length > USB_TRANS_MAX_SIZE)
-        // goto skip_frame;
         jpeg_length = USB_TRANS_MAX_SIZE - 1;
 
-    udd_flush(udd->udev, jpeg_data, jpeg_length);
-
-// skip_frame:
-    kfree(jpeg_data);
+    udd_flush(udd->udev, 0, 0, udd->encoder_buf, jpeg_length);
 }
 
 struct fb_info *udd_framebuffer_alloc(struct udd_display *display,

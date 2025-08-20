@@ -46,17 +46,11 @@ static void udd_drm_pipe_disable(struct drm_simple_display_pipe *pipe)
     pr_info("%s\n", __func__);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *clip, bool swap,
-                        struct drm_format_conv_state *fmtcnv_state)
-#else
 static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
                         struct drm_rect *clip, bool swap)
-#endif
 {
     struct udd *udd = drm_to_udd(fb->dev);
-    struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
+    // struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
     struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
     int ret;
 
@@ -65,37 +59,23 @@ static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer
         return ret;
 
     switch (fb->format->format) {
-    case DRM_FORMAT_RGB565:
-        if (swap)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach,
-                        fmtcnv_state);
-#else
-            drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
-#endif
-
-        else
-            drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
-        break;
-    case DRM_FORMAT_RGB888:
-        drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
-        break;
+    // case DRM_FORMAT_RGB565:
+    //     if (swap)
+    //         drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
+    //     else
+    //         drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
+    //     break;
+    // case DRM_FORMAT_RGB888:
+    //     drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
+    //     break;
     case DRM_FORMAT_XRGB8888:
         switch (udd->pixel_format) {
         case DRM_FORMAT_RGB565:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
-#else
             drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, swap);
-#endif
             break;
-        case DRM_FORMAT_RGB888:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-            drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip, fmtcnv_state);
-#else
-            drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip);
-#endif
-            break;
+        // case DRM_FORMAT_RGB888:
+        //     drm_fb_xrgb8888_to_rgb888(&dst_map, NULL, src, fb, clip);
+        //     break;
         }
         break;
     default:
@@ -109,50 +89,28 @@ static int udd_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer
     return ret;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-                        struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
-#else
 static void udd_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
                         struct drm_rect *rect)
-#endif
 {
     struct udd *udd = drm_to_udd(fb->dev);
     unsigned int height = rect->y2 - rect->y1;
     unsigned int width = rect->x2 - rect->x1;
-    // const struct drm_format_info *dst_format;
     ssize_t jpeg_length = 0;
-    u8 *jpeg_data;
     bool swap = false;
     int ret = 0;
-    // size_t len;
-    bool full;
     void *tr;
 
-    full = width == fb->width && height == fb->height;
-
     tr = udd->tx_buf;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-    ret = udd_buf_copy(tr, src, fb, rect, swap, fmtcnv_state);
-#else
     ret = udd_buf_copy(tr, src, fb, rect, swap);
-#endif
-    if (ret) {
-        pr_info("%s, error on buf copy!\n", __func__);
-    }
-    // tr = src->vaddr;
 
-    jpeg_data = jpeg_encode_rgb565(tr,
-                                480 * 320, &jpeg_length);
+    jpeg_encode_rgb565(tr, width, height, width * height * sizeof(u16),
+            udd->encoder_buf, &jpeg_length, udd->encoder_quality);
 
-    pr_info("%s, len : %ld\n", __func__, jpeg_length);
+    // pr_info("%s, w: %d, h: %d, len : %ld\n", __func__, width, height, jpeg_length);
     if (jpeg_length > USB_TRANS_MAX_SIZE)
-        // goto skip_frame;
         jpeg_length = USB_TRANS_MAX_SIZE - 1;
 
-    udd_flush(udd->udev, jpeg_data, jpeg_length);
-// skip_frame:
-    kfree(jpeg_data);
+    udd_flush(udd->udev, rect->x1, rect->y1, udd->encoder_buf, jpeg_length);
 }
 
 static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
@@ -161,7 +119,7 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
     struct drm_plane_state *state = pipe->plane.state;
     struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
     struct drm_framebuffer *fb = state->fb;
-    struct drm_rect rect, full_rect;
+    struct drm_rect rect;
     int idx;
 
     if (!pipe->crtc.state->active)
@@ -173,21 +131,9 @@ static void udd_drm_pipe_update(struct drm_simple_display_pipe *pipe,
     if (!drm_dev_enter(fb->dev, &idx))
         return;
 
-    // NOTE: use full refresh temporarily
-    full_rect.x1 = 0;
-    full_rect.y1 = 0;
-    full_rect.x2 = 480;
-    full_rect.y2 = 320;
-
-    pr_info("%s\n", __func__);
     if (drm_atomic_helper_damage_merged(old_state, state, &rect)) {
-        pr_info("x1: %u, y1: %u, x2: %u, y2: %u\n", rect.x1, rect.y1, rect.x2, rect.y2);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 8, 0)
-        udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect,
-                    &shadow_plane_state->fmtcnv_state);
-#else
-        udd_fb_dirty(&shadow_plane_state->data[0], fb, &full_rect);
-#endif
+        // pr_info("x1: %u, y1: %u, x2: %u, y2: %u\n", rect.x1, rect.y1, rect.x2, rect.y2);
+        udd_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
     }
 
     drm_dev_exit(idx);
@@ -259,8 +205,8 @@ static const struct drm_mode_config_funcs udd_drm_mode_config_funcs = {
 };
 
 static const uint32_t udd_drm_formats[] = {
-    DRM_FORMAT_RGB565,
-    DRM_FORMAT_XRGB8888,
+    DRM_FORMAT_RGB565,      /* device pixel format */
+    DRM_FORMAT_XRGB8888,    /* DRM driver framebuffer format */
 };
 
 static const struct drm_display_mode udd_disp_mode = {
@@ -303,6 +249,16 @@ static int udd_drm_dev_init_with_formats(struct udd *udd,
     udd->tx_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
     if (!udd->tx_buf)
         return -ENOMEM;
+
+    udd->encoder_buf = devm_kmalloc(drm->dev, tx_buf_size, GFP_KERNEL);
+    if (!udd->encoder_buf)
+        return -ENOMEM;
+
+    /* TODO: use debugfs to set params */
+    // udd->encoder_quality = JPEGE_Q_BEST;
+    // udd->encoder_quality = JPEGE_Q_HIGH;
+    // udd->encoder_quality = JPEGE_Q_MED;
+    udd->encoder_quality = JPEGE_Q_LOW;
 
     drm_mode_copy(&udd->mode, mode);
     pr_info("mode: %ux%u\n", udd->mode.hdisplay, udd->mode.vdisplay);

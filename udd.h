@@ -56,6 +56,10 @@ struct udd {
     struct fb_info        *info;
     struct udd_display    *display;
 
+    /* Encoder data */
+    u8 *encoder_buf;
+    u8 encoder_quality;
+
     /* DRM specific data */
     u16 *tx_buf;
     u32 pixel_format;
@@ -76,6 +80,6 @@ void udd_drm_release(struct drm_device *drm);
 int udd_drm_register(struct drm_device *drm);
 void udd_drm_unregister(struct drm_device *drm);
 
-ssize_t udd_flush(struct usb_device *udev, const u8 jpeg_data[], size_t data_size);
+ssize_t udd_flush(struct usb_device *udev, u16 x, u16 y, const u8 jpeg_data[], size_t data_size);
 
 #endif
