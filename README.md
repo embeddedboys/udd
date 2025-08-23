@@ -20,6 +20,23 @@ sudo insmod udd.ko
 
 The default display backend is DRM.
 
+## Setup and Test Desktop
+
+```bash
+sudo apt --no-install-recommends install xorg xfce4 lightdm -y
+sudo apt install lightdm-gtk-greeter -y
+```
+
+start xfce4 with root user:
+```bash
+sudo startxfce4
+```
+
+start xfce4 via lightdm
+```bash
+sudo lightdm -d
+```
+
 ## More
 
 ### Useful commands during development

@@ -5,8 +5,6 @@ KERN_DIR:=/lib/modules/$(shell uname -r)/build
 # users kernel dir
 # KERN_DIR:=/home/user/linux
 
-PLATFORM=local
-
 MODULE_NAME:=udd
 
 all:
@@ -21,8 +19,4 @@ test: all
 	sudo insmod $(MODULE_NAME).ko || true
 
 obj-m += $(MODULE_NAME).o
-ifeq ($(PLATFORM), local)
-	$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o dma_gem_dma_helper.o
-else
-	$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o
-endif
+$(MODULE_NAME)-y += usb.o jpegenc.o encoder.o fb.o drm.o dma_gem_dma_helper.o
