@@ -22,6 +22,14 @@ The default display backend is DRM.
 
 ## Setup and Test Desktop
 
+### Disable WSL X11 application forward
+create and edit `.wslconfig` in your current windows user dir
+```
+[wsl2]
+guiApplications=false
+```
+
+### Install Desktop
 ```bash
 sudo apt --no-install-recommends install xorg xfce4 lightdm -y
 sudo apt install lightdm-gtk-greeter -y
